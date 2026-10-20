@@ -101,6 +101,11 @@ async fn main() {
         .route("/match/{region}/merge", post(merge_match))
         .route("/lol/match/{region}/{id}", get(lol::get_match))
         .route("/lol/match/{region}/{id}/renew", post(lol::renew_match))
+        .route("/lol/match/{region}/{id}/timeline", get(lol::get_timeline))
+        .route(
+            "/lol/match/{region}/{id}/timeline/renew",
+            post(lol::renew_timeline),
+        )
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .route("/health", get(health))
         .with_state(state);
