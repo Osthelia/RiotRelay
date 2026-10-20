@@ -9,6 +9,8 @@
 // License: https://github.com/Osthelia/RiotRelay/blob/main/LICENSE.md (Osthelia License v1.0)
 // Repository: https://github.com/Osthelia/RiotRelay
 
+mod lol;
+
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
@@ -54,6 +56,7 @@ struct AppState {
     db: PgPool,
     http: reqwest::Client,
     api_key: String,
+    lol_api_key: Option<String>,
     auth_key: String,
 }
 
@@ -62,6 +65,9 @@ async fn main() {
     dotenvy::dotenv().ok();
 
     let api_key = std::env::var("RIOT_API_KEY").expect("RIOT_API_KEY must be set");
+    let lol_api_key = std::env::var("LOL_RIOT_API_KEY")
+        .ok()
+        .filter(|key| !key.trim().is_empty());
     let auth_key = std::env::var("AUTH_KEY").expect("AUTH_KEY must be set");
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
@@ -85,6 +91,7 @@ async fn main() {
         db,
         http,
         api_key,
+        lol_api_key,
         auth_key,
     });
 
@@ -92,6 +99,8 @@ async fn main() {
         .route("/match/{region}/{id}", get(get_match))
         .route("/match/{region}/{id}/renew", post(renew_match))
         .route("/match/{region}/merge", post(merge_match))
+        .route("/lol/match/{region}/{id}", get(lol::get_match))
+        .route("/lol/match/{region}/{id}/renew", post(lol::renew_match))
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .route("/health", get(health))
         .with_state(state);
@@ -153,13 +162,11 @@ enum RiotFetch {
 
 async fn fetch_from_riot(state: &AppState, region: &str, id: &str) -> RiotFetch {
     let url = format!("https://{region}.api.riotgames.com/val/match/v1/matches/{id}");
-    let resp = match state
-        .http
-        .get(&url)
-        .header("X-Riot-Token", &state.api_key)
-        .send()
-        .await
-    {
+    fetch_url(&state.http, &url, &state.api_key).await
+}
+
+async fn fetch_url(http: &reqwest::Client, url: &str, api_key: &str) -> RiotFetch {
+    let resp = match http.get(url).header("X-Riot-Token", api_key).send().await {
         Ok(resp) => resp,
         Err(e) => return RiotFetch::Unreachable(e.to_string()),
     };
