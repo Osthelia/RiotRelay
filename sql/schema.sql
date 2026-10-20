@@ -16,3 +16,22 @@ CREATE TABLE IF NOT EXISTS matches (
     fetched_at TIMESTAMPTZ  NOT NULL,
     PRIMARY KEY (region, match_id)
 );
+
+-- League cache is independent of Valorant; no existing entries are migrated.
+CREATE TABLE IF NOT EXISTS lol_matches (
+    region VARCHAR(16) NOT NULL,
+    match_id VARCHAR(64) NOT NULL,
+    body TEXT NOT NULL,
+    fetched_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (region, match_id)
+);
+
+
+-- League Match-V5 timeline cache; kept separate from match metadata.
+CREATE TABLE IF NOT EXISTS lol_timelines (
+    region VARCHAR(16) NOT NULL,
+    match_id VARCHAR(64) NOT NULL,
+    body TEXT NOT NULL,
+    fetched_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (region, match_id)
+);
