@@ -41,21 +41,39 @@ jobs:
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           VERSION="${INPUT_VERSION:-$SHORT_SHA}"
 
+          # The full commit SHA is the tag the GitOps repo deploys (Osthelia/GitOps, apps/production).
+          SHA_TAG="ghcr.io/osthelia/riotrelay:${{ github.sha }}"
+
           if [ "${{ inputs.environment }}" = "prod" ]; then
-            echo "tags=ghcr.io/osthelia/riotrelay:latest,ghcr.io/osthelia/riotrelay:${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "tags=ghcr.io/osthelia/riotrelay:latest,ghcr.io/osthelia/riotrelay:${VERSION},${SHA_TAG}" >> "$GITHUB_OUTPUT"
             echo "image-tag=latest" >> "$GITHUB_OUTPUT"
           else
-            echo "tags=ghcr.io/osthelia/riotrelay:preprod" >> "$GITHUB_OUTPUT"
+            echo "tags=ghcr.io/osthelia/riotrelay:preprod,${SHA_TAG}" >> "$GITHUB_OUTPUT"
             echo "image-tag=preprod" >> "$GITHUB_OUTPUT"
           fi
 
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
+      - name: Build image for scan
+        uses: docker/build-push-action@v7
+        with:
+          load: true
+          tags: local/riotrelay:scan
+          build-args: |
+            RELEASE_VERSION=${{ steps.meta.outputs.version }}
+
+      - name: Scan image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: local/riotrelay:scan
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
       - name: Build & Push
         uses: docker/build-push-action@v7
         with:
           push: true
-          no-cache: true
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
             RELEASE_VERSION=${{ steps.meta.outputs.version }}

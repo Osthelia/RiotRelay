@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd -ms /bin/bash appuser
+RUN useradd -u 1000 -ms /bin/bash appuser
 
 WORKDIR /app
 
