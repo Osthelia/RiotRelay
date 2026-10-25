@@ -29,6 +29,8 @@ jobs:
   # Staging follows main. Production is promoted by hand (a PR on apps/production in the GitOps repo).
   gitops:
     name: Bump riotrelay (staging)
+    permissions:
+      contents: read
     needs: [build]
     if: github.event_name == 'push'
     uses: Osthelia/GitOps/.github/workflows/bump-image.yml@main
