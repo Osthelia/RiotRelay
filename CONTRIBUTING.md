@@ -27,7 +27,7 @@ Before you spend time writing code, **please open a "Feature Request" or "Bug Re
 To keep the codebase clean and maintainable:
 - **Formatting & linting:** We use `rustfmt` and Clippy, the same checks as the CI (see below).
 - **Database:** The relay uses PostgreSQL through SQLx. Ensure your changes are compatible with PostgreSQL.
-- **Copyright notice:** Do not remove or alter the Osthelia copyright notice shown by the calling services (see [LICENSE.md](LICENSE.md)).
+- **Copyright notice:** Do not remove or alter the Osthelia copyright notice shown in the legal pages of the calling services (see [LICENSE.md](LICENSE.md)).
 
 ### 4. Submitting a Pull Request
 

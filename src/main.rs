@@ -6,7 +6,7 @@
 // Riot has answered (Riot deletes matches after ~3 months).
 //
 // Copyright (c) 2026 Osthelia — RiotRelay
-// License: https://github.com/Osthelia/RiotRelay/blob/main/LICENSE.md (Osthelia License v1.0)
+// License: https://github.com/Osthelia/RiotRelay/blob/main/LICENSE.md (Osthelia Free License v2.0)
 // Repository: https://github.com/Osthelia/RiotRelay
 
 use std::collections::{HashMap, HashSet};

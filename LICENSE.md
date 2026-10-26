@@ -1,64 +1,92 @@
-# Osthelia License — Version 1.0
+# Osthelia Free License — Version 2.0
 
 **Copyright (c) 2026 Osthelia — RiotRelay**
 
+Original repository: [https://github.com/Osthelia/RiotRelay](https://github.com/Osthelia/RiotRelay)
+
 Osthelia is a non-profit association governed by the French law of 1 July 1901 (the "Association").
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software, including the rights to use, copy, modify, merge, publish, and distribute copies of the Software, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to use, copy, modify, merge, publish, distribute, deploy, sublicense and sell the Software, **including for commercial purposes**, subject to the following conditions:
+
+---
+
+## 0. Definitions
+
+- **"Software"** — The source code, documentation, assets and any other material published in the original repository named above.
+- **"Derivative Work"** — Any modified version, fork, translation or adaptation of the Software, or any work that incorporates a substantial portion of it.
+- **"Deployment"** — Any running instance of the Software or of a Derivative Work made accessible to anyone other than You (website, web application, bot, API, worker, widget, overlay, embed, etc.).
+- **"End-User"** — Any person who interacts with a Deployment.
+- **"Attribution Requirements"** — The project-specific rules set out in **Appendix A** of this license.
+- **"You"** — The person or entity exercising the rights granted by this license.
 
 ---
 
 ## 1. Attribution and Copyright Notice
 
-The above copyright notice and a link to the original repository ([https://github.com/Osthelia/RiotRelay](https://github.com/Osthelia/RiotRelay)) must be included in all copies or substantial portions of the Software.
+### 1.1 Source Attribution
 
-### 1.1 Visible Copyright Notice
-
-Any website, bot, service, or application that uses, hosts, or is derived from the Software must display the following notice, **clearly visible to end-users**:
-
-> Based on [RiotRelay](https://github.com/Osthelia/RiotRelay) by [Osthelia](https://osthelia.org/)
-
-The notice must be displayed in the following location, depending on the nature of the derivative work:
-
-- **Websites and web applications** — In the footer of every public page.
-- **Discord bots** — In the bot's profile description ("About Me"). Where links cannot be rendered, the full URLs must be written out in plain text.
-- **Services without a user interface** (APIs, workers, relays, background jobs) — In the user interface of the service calling the Software, alongside that service's own copyright notice. If the Software is called by a service that has no user interface either, the obligation passes on to the first service in the chain that exposes one to end-users.
-
-The notice must:
-
-- Keep the links to the original repository and to [https://osthelia.org/](https://osthelia.org/) active and pointing to the addresses above.
-- Be legible, with a font size and contrast comparable to the surrounding content.
-- Not be hidden, collapsed by default, or displayed only on a secondary page.
+The above copyright notice, this license and a link to the original repository must be included in all copies or substantial portions of the Software and of any Derivative Work.
 
 ### 1.2 Source File Headers
 
 Copyright notices and license headers present in the Software's source files (including, but not limited to, file-level headers identifying the file's author, purpose, and license) **must NOT be removed, obscured, or altered**, whether or not the file is modified. If a file is modified, you may add a notice indicating the nature of your changes, but the original copyright and license header must be preserved in full.
 
----
+### 1.3 Visible Attribution
 
-## 2. Ethical Usage Restrictions
+Every Deployment must display an attribution notice to its End-Users **as described in Appendix A**. Where Appendix A is missing, or does not cover a given type of Deployment, the default rules of Appendix A apply.
 
-The Software shall **NOT** be used, modified, or redistributed for any of the following purposes:
+### 1.4 No Endorsement
 
-- **Illegal acts & harassment** — Engaging in, promoting, or facilitating illegal acts, hatred, violence, discrimination, or organized harassment.
-- **Gambling** — Development, hosting, or promotion of sports betting platforms, online casinos, or any service related to games of chance and wagering.
-- **Unauthorized Data Scraping** — Mass data extraction, or the resale/exchange of databases.
-- **Scams & fraud** — Creation of phishing services, virtual item (skins) scams, or promotion of deceptive financial schemes.
-- **Disinformation** — Deliberate spread of false information, manipulation of game statistics for deceptive purposes, or impersonation of players, teams, officials, or of the Association itself.
+This license does not grant any right to use the name, logo or trademarks of the Association beyond the attribution notice required above. You may not state or imply that a Deployment or a Derivative Work is endorsed, operated or approved by the Association without its prior written consent.
 
 ---
 
-## 3. Share-Alike (Copyleft) Requirement
+## 2. Commercial Use
 
-Any person who modifies, adapts, or redistributes the Software (or any derivative works based upon it) must release the resulting software, source code, or service under this exact same license (**Osthelia License v1.0**).
-
-You may not distribute derivative works under terms that are more restrictive or more permissive than this license.
-
-Transfers of rights to third parties are not permitted without prior written consent from the Association.
+Commercial use of the Software is permitted without any further restriction than those of Sections 1 and 3. This includes selling the Software or Derivative Works, offering paid features or subscriptions, and displaying advertising — except advertising for gambling services (see 3.2).
 
 ---
 
-## 4. License Termination
+## 3. Ethical Usage Restrictions
+
+The Software shall **NOT** be used, modified, deployed or redistributed for any of the following purposes:
+
+- **Illegal acts** — Engaging in, promoting, or facilitating illegal acts, scams, fraud or violence.
+- **Hate speech & harassment** — See 3.1.
+- **Gambling** — See 3.2.
+
+### 3.1 Hate Speech and Harassment
+
+"Hate speech" means any content or activity that attacks, demeans, dehumanises, or incites violence, exclusion or discrimination against people on the basis of their gender, gender identity or expression (including trans and non-binary people), sexual orientation, ethnicity, nationality, religion, disability, age, or any other characteristic protected by law.
+
+You may not use the Software or a Deployment to publish, host, promote or organise hate speech or harassment campaigns, and a Deployment may not be operated by or for the benefit of a group whose purpose or regular activity is to do so.
+
+Content posted by End-Users in breach of this section is not a violation of this license by You, provided You remove it, or take reasonable moderation measures, promptly after becoming aware of it.
+
+### 3.2 Gambling
+
+"Gambling" means any game, bet or wager in which money, cryptocurrency, virtual items with a real-world value (such as skins) or anything else of monetary value is staked on an uncertain outcome. This includes, but is not limited to, sports and esports betting, online casinos, crash/roulette/coinflip games, case opening and skin gambling, crypto-casinos, paid prediction markets, and fantasy leagues with a paid entry and cash prizes.
+
+You may not:
+
+- Develop, host, operate or integrate the Software with any gambling service.
+- Promote any gambling service through a Deployment, including through advertising, sponsorship, affiliate links, referral or promo codes, or the display of betting odds.
+- Supply data produced by the Software (statistics, results, schedules, rankings) to a gambling operator, or to any intermediary acting for one.
+
+Free prediction games (such as pick'ems) where participation requires no stake of any kind are **not** considered gambling.
+
+---
+
+## 4. Derivative Works
+
+You may distribute Derivative Works under the license of Your choice, open or proprietary, and You are not required to publish their source code, provided that:
+
+- The attribution requirements of Section 1 (including Appendix A) are kept for the portions derived from the Software.
+- The restrictions of Section 3 are included in Your license terms and remain binding on every recipient and End-User of the Derivative Work.
+
+---
+
+## 5. License Termination
 
 Any violation of the terms and conditions of this license automatically and immediately terminates your rights under it, without notice.
 
@@ -68,7 +96,7 @@ The Association may, at its sole discretion, reinstate the terminated rights upo
 
 ---
 
-## 5. Governing Law
+## 6. Governing Law
 
 This license and any disputes arising from the use of the Software shall be governed by and construed in accordance with the laws of France, without regard to its conflict of law principles.
 
@@ -76,10 +104,29 @@ Any legal action or proceeding arising under this license shall be brought exclu
 
 ---
 
-## 6. Disclaimer of Warranty
+## 7. Disclaimer of Warranty
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS, THE ASSOCIATION OR ITS MEMBERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-*Osthelia License v1.0 — Osthelia — 2026 — Governed by French Law*
+## Appendix A — Attribution Requirements for RiotRelay
+
+Every Deployment must display the following notice, **clearly visible to its End-Users**:
+
+> Based on [RiotRelay](https://github.com/Osthelia/RiotRelay) by [Osthelia](https://osthelia.org/)
+
+**Where the notice must appear:**
+
+- RiotRelay has no user interface. The notice must appear in the **legal pages** (Terms of Use and/or Legal Notice) of the website or application that calls the Deployment. If that service has no user interface either, the obligation passes on to the first service in the chain that exposes one to End-Users, in the same legal pages.
+- The notice is **not** required in the responses returned by the relay.
+
+**The notice must:**
+
+- Keep the links to the original repository and to [https://osthelia.org/](https://osthelia.org/) active and pointing to the addresses above.
+- Be legible, with a font size and contrast comparable to the surrounding content.
+- Appear in the body of the legal page itself (for example in a "Credits" or "Software used" section), not hidden or collapsed by default.
+
+---
+
+*Osthelia Free License v2.0 — Osthelia — 2026 — Governed by French Law*

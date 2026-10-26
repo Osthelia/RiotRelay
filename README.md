@@ -20,7 +20,7 @@ Because Riot is keeping matchs for only 3 months (Except for the esports clients
 This repository contains the Rust relay caching Valorant matches from the Riot API.
 
 ## 🤝 License
-License: This project is licensed under the Osthelia License v1.0 - see the [LICENSE](https://github.com/Osthelia/RiotRelay/blob/main/LICENSE.md) file for details.
+License: This project is licensed under the Osthelia Free License v2.0 - see the [LICENSE](https://github.com/Osthelia/RiotRelay/blob/main/LICENSE.md) file for details.
 
 ## 🛠 Tech Stack
 

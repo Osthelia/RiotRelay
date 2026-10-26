@@ -6,7 +6,7 @@
 --   CREATE DATABASE riotrelay;
 --
 -- Copyright (c) 2026 Osthelia — RiotRelay
--- License: https://github.com/Osthelia/RiotRelay/blob/main/LICENSE.md (Osthelia License v1.0)
+-- License: https://github.com/Osthelia/RiotRelay/blob/main/LICENSE.md (Osthelia Free License v2.0)
 -- Repository: https://github.com/Osthelia/RiotRelay
 
 CREATE TABLE IF NOT EXISTS matches (
