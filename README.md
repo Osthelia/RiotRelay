@@ -35,9 +35,18 @@ All endpoints (except `/health`) require an `Authorization` header matching the 
 |---|---|
 | `GET /match/{region}/{id}` | Returns the match from cache (`X-Cache: HIT` + `X-Cache-Fetched-At`), or fetches it from Riot and caches it (`X-Cache: MISS`) |
 | `POST /match/{region}/{id}/renew` | Re-fetches the match from Riot and replaces the cached copy (`X-Cache: RENEWED`). If Riot fails, the old cache entry is preserved (`X-Cache: RENEW-FAILED` + `X-Cache-Preserved: true`) |
+| `GET /lol/match/{region}/{id}` | League match (Match-V5): same cache behaviour as the Valorant route |
+| `POST /lol/match/{region}/{id}/renew` | Re-fetches the League match (`RENEWED` / `RENEW-FAILED` + `X-Cache-Preserved`) |
+| `GET /lol/match/{region}/{id}/timeline` | League match timeline, cached like the match (`HIT` / `MISS`) |
+| `POST /lol/match/{region}/{id}/timeline/renew` | Re-fetches the timeline (`RENEWED` / `RENEW-FAILED` + `X-Cache-Preserved`) |
+| `GET /lol/matches/{region}/by-puuid/{puuid}` | Match IDs of a player (`X-Cache: BYPASS`). Optional query: `type` (`ranked`, `normal`, `tourney`, `tutorial`), `startTime` / `endTime` (epoch seconds, `endTime` > `startTime`), `start` (≥ 0), `count` (1–100, default 20). Other parameters are dropped |
+| `GET /lol/account/{region}/by-riot-id/{game_name}/{tag_line}` | Riot account (`puuid`, `gameName`, `tagLine`) from a Riot ID (`X-Cache: BYPASS`). `game_name`: 3–16 characters, no `#` or `/`; `tag_line`: 3–5 letters or digits |
+| `GET /lol/account/{region}/by-puuid/{puuid}` | Riot account from a PUUID (`X-Cache: BYPASS`). Riot answers 400 for a PUUID issued to another API key |
 | `GET /health` | Liveness probe, no auth |
 
-`region` must be one of: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`.
+Valorant `region` must be one of: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`.
+
+League `region` must be one of: `americas`, `asia`, `europe`, `sea`. The account routes map `sea` to the `asia` host, because account-v1 has no `sea` host.
 
 ## ⚠️ Usage
 

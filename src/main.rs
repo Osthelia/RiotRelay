@@ -106,6 +106,18 @@ async fn main() {
             "/lol/match/{region}/{id}/timeline/renew",
             post(lol::renew_timeline),
         )
+        .route(
+            "/lol/matches/{region}/by-puuid/{puuid}",
+            get(lol::get_matches_by_puuid),
+        )
+        .route(
+            "/lol/account/{region}/by-riot-id/{game_name}/{tag_line}",
+            get(lol::get_account_by_riot_id),
+        )
+        .route(
+            "/lol/account/{region}/by-puuid/{puuid}",
+            get(lol::get_account_by_puuid),
+        )
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .route("/health", get(health))
         .with_state(state);
