@@ -371,23 +371,26 @@ fn riot_url(host: &str, base: &str, segments: &[&str]) -> Url {
     url
 }
 
-/// Turns a Riot answer into a response for an uncached route: a 200 passes
-/// `valid` or becomes `invalid_riot_response`, errors and rate-limit headers
-/// pass through.
-fn bypass_response(fetched: RiotFetch, valid: impl Fn(&str) -> bool) -> Response {
+/// Turns a Riot answer into a response: a 200 passes `valid` or becomes
+/// `invalid_riot_response`, errors and rate-limit headers pass through.
+fn relay_response(
+    fetched: RiotFetch,
+    cache_status: &str,
+    valid: impl Fn(&str) -> bool,
+) -> Response {
     match fetched {
-        RiotFetch::Ok(body) if valid(&body) => json_response(StatusCode::OK, BYPASS, body),
+        RiotFetch::Ok(body) if valid(&body) => json_response(StatusCode::OK, cache_status, body),
         RiotFetch::Ok(_) => json_response(
             StatusCode::BAD_GATEWAY,
-            BYPASS,
+            cache_status,
             json!({"error":"invalid_riot_response"}).to_string(),
         ),
         RiotFetch::Error(status, headers, body) => {
-            let mut response = json_response(status, BYPASS, body);
+            let mut response = json_response(status, cache_status, body);
             response.headers_mut().extend(headers);
             response
         }
-        RiotFetch::Unreachable(err) => unreachable_response(BYPASS, &err),
+        RiotFetch::Unreachable(err) => unreachable_response(cache_status, &err),
     }
 }
 
@@ -396,6 +399,12 @@ fn valid_riot_id(game_name: &str, tag_line: &str) -> bool {
         && !game_name.contains(['#', '/'])
         && (3..=5).contains(&tag_line.chars().count())
         && tag_line.chars().all(char::is_alphanumeric)
+}
+
+/// Riot IDs are case-insensitive, and the account service is global, so the
+/// cache key is the lowercased name and tag without the region.
+fn riot_id_cache_key(game_name: &str, tag_line: &str) -> (String, String) {
+    (game_name.to_lowercase(), tag_line.to_lowercase())
 }
 
 /// Riot PUUIDs are 78 characters of `A-Za-z0-9_-`.
@@ -484,7 +493,34 @@ pub async fn get_account_by_riot_id(
     if !valid_riot_id(&game_name, &tag_line) {
         return bad_request("invalid riot id");
     }
-    let key = match lol_key(&state, BYPASS) {
+    let (name_key, tag_key) = riot_id_cache_key(&game_name, &tag_line);
+
+    let cached: Option<(String, String)> = match sqlx::query_as(
+        "SELECT body, to_char(fetched_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')
+         FROM lol_accounts
+         WHERE game_name = $1 AND tag_line = $2 AND fetched_at > now() - interval '3 days'",
+    )
+    .bind(&name_key)
+    .bind(&tag_key)
+    .fetch_optional(&state.db)
+    .await
+    {
+        Ok(cached) => cached,
+        Err(e) => {
+            eprintln!("db error reading League account cache for {name_key}#{tag_key}: {e}");
+            return db_error_response();
+        }
+    };
+
+    if let Some((body, fetched_at)) = cached {
+        let mut response = json_response(StatusCode::OK, "HIT", body);
+        if let Ok(value) = HeaderValue::from_str(&fetched_at) {
+            response.headers_mut().insert("X-Cache-Fetched-At", value);
+        }
+        return response;
+    }
+
+    let key = match lol_key(&state, "MISS") {
         Ok(key) => key,
         Err(response) => return response,
     };
@@ -493,10 +529,15 @@ pub async fn get_account_by_riot_id(
         "riot/account/v1/accounts/by-riot-id",
         &[&game_name, &tag_line],
     );
-    bypass_response(
-        fetch_url(&state.http, url.as_str(), key).await,
-        valid_account_body,
-    )
+    let fetched = fetch_url(&state.http, url.as_str(), key).await;
+    if let RiotFetch::Ok(body) = &fetched
+        && valid_account_body(body)
+        && let Err(e) = store_lol_account(&state.db, &name_key, &tag_key, body).await
+    {
+        eprintln!("failed to cache League account {name_key}#{tag_key}: {e}");
+        return db_error_response();
+    }
+    relay_response(fetched, "MISS", valid_account_body)
 }
 
 pub async fn get_account_by_puuid(
@@ -519,8 +560,9 @@ pub async fn get_account_by_puuid(
         "riot/account/v1/accounts/by-puuid",
         &[&puuid],
     );
-    bypass_response(
+    relay_response(
         fetch_url(&state.http, url.as_str(), key).await,
+        BYPASS,
         valid_account_body,
     )
 }
@@ -546,8 +588,9 @@ pub async fn get_matches_by_puuid(
         Err(response) => return response,
     };
     let url = match_ids_url(&region, &puuid, &query);
-    bypass_response(
+    relay_response(
         fetch_url(&state.http, url.as_str(), key).await,
+        BYPASS,
         valid_match_ids_body,
     )
 }
@@ -578,6 +621,24 @@ async fn store_lol_match(
     )
     .bind(region)
     .bind(id)
+    .bind(body)
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
+async fn store_lol_account(
+    db: &sqlx::PgPool,
+    game_name: &str,
+    tag_line: &str,
+    body: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO lol_accounts (game_name, tag_line, body, fetched_at) VALUES ($1, $2, $3, now())
+         ON CONFLICT (game_name, tag_line) DO UPDATE SET body = EXCLUDED.body, fetched_at = EXCLUDED.fetched_at",
+    )
+    .bind(game_name)
+    .bind(tag_line)
     .bind(body)
     .execute(db)
     .await?;
@@ -675,6 +736,18 @@ mod tests {
         );
         assert_eq!(url.query(), None);
         assert_eq!(url.path_segments().unwrap().count(), 7);
+    }
+
+    #[test]
+    fn riot_id_cache_key_ignores_case() {
+        assert_eq!(
+            riot_id_cache_key("Hide On Bush", "KR1"),
+            riot_id_cache_key("hide on bush", "kr1")
+        );
+        assert_eq!(
+            riot_id_cache_key("ÉLAN", "EUW"),
+            ("élan".to_string(), "euw".to_string())
+        );
     }
 
     #[test]
