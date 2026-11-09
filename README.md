@@ -41,7 +41,6 @@ All endpoints (except `/health`) require an `Authorization` header matching the 
 | `POST /lol/match/{region}/{id}/timeline/renew` | Re-fetches the timeline (`RENEWED` / `RENEW-FAILED` + `X-Cache-Preserved`) |
 | `GET /lol/matches/{region}/by-puuid/{puuid}` | Match IDs of a player (`X-Cache: BYPASS`). Optional query: `type` (`ranked`, `normal`, `tourney`, `tutorial`), `startTime` / `endTime` (epoch seconds, `endTime` > `startTime`), `start` (≥ 0), `count` (1–100, default 20). Other parameters are dropped |
 | `GET /lol/account/{region}/by-riot-id/{game_name}/{tag_line}` | Riot account (`puuid`, `gameName`, `tagLine`) from a Riot ID, cached for three days (`X-Cache: HIT` + `X-Cache-Fetched-At`, or `MISS`). Case-insensitive; the region doesn't matter for the cache. `game_name`: 3–16 characters, no `#` or `/`; `tag_line`: 3–5 letters or digits |
-| `GET /lol/account/{region}/by-puuid/{puuid}` | Riot account from a PUUID (`X-Cache: BYPASS`). Riot answers 400 for a PUUID issued to another API key |
 | `GET /health` | Liveness probe, no auth |
 
 Valorant `region` must be one of: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`.
