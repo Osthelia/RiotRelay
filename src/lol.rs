@@ -540,33 +540,6 @@ pub async fn get_account_by_riot_id(
     relay_response(fetched, "MISS", valid_account_body)
 }
 
-pub async fn get_account_by_puuid(
-    State(state): State<Arc<AppState>>,
-    Path((region, puuid)): Path<(String, String)>,
-) -> Response {
-    let region = match parse_region(&region) {
-        Ok(region) => region,
-        Err(response) => return response,
-    };
-    if !valid_puuid(&puuid) {
-        return bad_request("invalid puuid");
-    }
-    let key = match lol_key(&state, BYPASS) {
-        Ok(key) => key,
-        Err(response) => return response,
-    };
-    let url = riot_url(
-        account_host(&region),
-        "riot/account/v1/accounts/by-puuid",
-        &[&puuid],
-    );
-    relay_response(
-        fetch_url(&state.http, url.as_str(), key).await,
-        BYPASS,
-        valid_account_body,
-    )
-}
-
 pub async fn get_matches_by_puuid(
     State(state): State<Arc<AppState>>,
     Path((region, puuid)): Path<(String, String)>,
