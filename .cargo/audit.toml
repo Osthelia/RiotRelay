@@ -1,0 +1,7 @@
+[advisories]
+ignore = [
+    # libsqlite3-sys is only a lockfile entry (sqlx-sqlite, pinned to 0.37 by sqlx 0.9.0).
+    # The sqlite feature is not enabled, so it is never compiled or linked
+    # (`cargo tree -i libsqlite3-sys` is empty). Remove once sqlx ships rusqlite 0.41 support.
+    "RUSTSEC-2026-0459",
+]
