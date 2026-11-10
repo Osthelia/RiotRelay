@@ -381,12 +381,18 @@ async fn renew_match(
 
 /// One source match contributing its `[start_round, end_round]` rounds
 /// (inclusive) to a merge. The caller resolves any overlap between source
-/// matches itself by choosing non-overlapping ranges up front.
+/// matches itself by choosing non-overlapping ranges up front, or sets
+/// `renumber` to have the segment appended after the previous rounds.
 #[derive(Clone)]
 struct MergeSegment {
     match_id: String,
     start_round: i64,
-    end_round: i64,
+    /// `None` means "up to the match's last round".
+    end_round: Option<i64>,
+    /// Shifts the selected rounds' `roundNum` so the first one lands right
+    /// after the highest `roundNum` already merged (for a restarted game whose
+    /// numbering does not continue the previous segment).
+    renumber: bool,
 }
 
 /// Builds a match out of round-by-round data taken from several remade
@@ -450,8 +456,8 @@ async fn merge_match(
     json_response(StatusCode::OK, "MERGED", body_str)
 }
 
-/// Parses and validates the `{"segments": [{matchId, startRound, endRound}]}`
-/// request body.
+/// Parses and validates the
+/// `{"segments": [{matchId, startRound, endRound?, renumber?}]}` request body.
 #[allow(clippy::result_large_err)]
 fn parse_merge_segments(body: &serde_json::Value) -> Result<Vec<MergeSegment>, Response> {
     let bad = |msg: String| {
@@ -497,19 +503,35 @@ fn parse_merge_segments(body: &serde_json::Value) -> Result<Vec<MergeSegment>, R
             .get("startRound")
             .and_then(|v| v.as_i64())
             .ok_or_else(|| bad(format!("segments[{i}].startRound is required")))?;
-        let end_round = item
-            .get("endRound")
-            .and_then(|v| v.as_i64())
-            .ok_or_else(|| bad(format!("segments[{i}].endRound is required")))?;
+        let end_round = match item.get("endRound") {
+            None | Some(serde_json::Value::Null) => None,
+            Some(v) => Some(
+                v.as_i64()
+                    .ok_or_else(|| bad(format!("segments[{i}].endRound is invalid")))?,
+            ),
+        };
+        let renumber = match item.get("renumber") {
+            None | Some(serde_json::Value::Null) => false,
+            Some(v) => v
+                .as_bool()
+                .ok_or_else(|| bad(format!("segments[{i}].renumber must be a boolean")))?,
+        };
 
-        if start_round < 0 || end_round < start_round {
+        if start_round < 0 || end_round.is_some_and(|end| end < start_round) {
             return Err(bad(format!("segments[{i}] has an invalid round range")));
+        }
+        if i == 0 && renumber {
+            return Err(bad(
+                "segments[0].renumber is not allowed: the first segment has no previous rounds"
+                    .to_string(),
+            ));
         }
 
         segments.push(MergeSegment {
             match_id: match_id.to_string(),
             start_round,
             end_round,
+            renumber,
         });
     }
 
@@ -519,13 +541,23 @@ fn parse_merge_segments(body: &serde_json::Value) -> Result<Vec<MergeSegment>, R
 /// Deterministic new match ID: a SHA-256 hash of the sorted segment list, so
 /// the same set of (matchId, startRound, endRound) triples always produces
 /// the same merged match regardless of the order they're submitted in, and
-/// re-submitting an identical merge request is idempotent. Formatted like a
+/// re-submitting an identical merge request is idempotent. Renumbered
+/// segments depend on their position, so their index is part of the hash. Formatted like a
 /// Riot match ID with its first 4 characters replaced by "GCS-", per the
 /// merged-match ID convention.
 fn compute_merged_id(segments: &[MergeSegment]) -> String {
     let mut parts: Vec<String> = segments
         .iter()
-        .map(|s| format!("{}:{}-{}", s.match_id, s.start_round, s.end_round))
+        .enumerate()
+        .map(|(i, s)| {
+            let end = s.end_round.map_or("end".to_string(), |e| e.to_string());
+            let renumber = if s.renumber {
+                format!(":r{i}")
+            } else {
+                String::new()
+            };
+            format!("{}:{}-{}{}", s.match_id, s.start_round, end, renumber)
+        })
         .collect();
     parts.sort();
     let canonical = parts.join("|");
@@ -616,7 +648,9 @@ async fn fetch_match_for_merge(
 /// Builds the merged match body out of the per-segment round ranges.
 ///
 /// `roundResults` are taken verbatim from their source match, selected by
-/// `[startRound, endRound]` and concatenated in segment order; a `roundNum`
+/// `[startRound, endRound]` (open-ended if `endRound` is absent, renumbered
+/// after the previous rounds if `renumber` is set) and concatenated in
+/// segment order; a `roundNum`
 /// claimed by more than one segment is rejected as a conflict rather than
 /// silently picking one. Per-player `score`/`kills`/`deaths`/`assists` are
 /// then recomputed by summing the merged rounds' `playerStats`, so they stay
@@ -634,7 +668,12 @@ fn merge_round_data(
     let mut merged_rounds: Vec<serde_json::Value> = Vec::new();
     let mut round_owner: HashMap<i64, String> = HashMap::new();
 
+    let mut max_round_num: i64 = -1;
+
     for (seg, value) in sources {
+        // Set by the first selected round of a renumbered segment, which is
+        // not necessarily `start_round` if that round is missing.
+        let mut renumber_shift: Option<i64> = None;
         let rounds = value
             .get("roundResults")
             .and_then(|v| v.as_array())
@@ -653,9 +692,22 @@ fn merge_round_data(
                     ))
                 })?;
 
-            if round_num < seg.start_round || round_num > seg.end_round {
+            if round_num < seg.start_round || seg.end_round.is_some_and(|end| round_num > end) {
                 continue;
             }
+
+            let mut round = round.clone();
+            let round_num = if seg.renumber {
+                let shift = *renumber_shift.get_or_insert(max_round_num + 1 - round_num);
+                let shifted = round_num + shift;
+                if let Some(obj) = round.as_object_mut() {
+                    obj.insert("roundNum".to_string(), json!(shifted));
+                }
+                shifted
+            } else {
+                round_num
+            };
+            max_round_num = max_round_num.max(round_num);
 
             if let Some(prev_match) = round_owner.get(&round_num) {
                 return Err(json_response(
@@ -670,7 +722,7 @@ fn merge_round_data(
                 ));
             }
             round_owner.insert(round_num, seg.match_id.clone());
-            merged_rounds.push(round.clone());
+            merged_rounds.push(round);
         }
     }
 
@@ -1024,7 +1076,8 @@ mod tests {
                 MergeSegment {
                     match_id: match_a.to_string(),
                     start_round: 0,
-                    end_round: 1,
+                    end_round: Some(1),
+                    renumber: false,
                 },
                 value_a,
             ),
@@ -1032,7 +1085,8 @@ mod tests {
                 MergeSegment {
                     match_id: match_b.to_string(),
                     start_round: 2,
-                    end_round: 3,
+                    end_round: Some(3),
+                    renumber: false,
                 },
                 value_b,
             ),
@@ -1091,7 +1145,8 @@ mod tests {
                 MergeSegment {
                     match_id: match_a.to_string(),
                     start_round: 0,
-                    end_round: 0,
+                    end_round: Some(0),
+                    renumber: false,
                 },
                 value_a,
             ),
@@ -1099,7 +1154,8 @@ mod tests {
                 MergeSegment {
                     match_id: match_b.to_string(),
                     start_round: 0,
-                    end_round: 0,
+                    end_round: Some(0),
+                    renumber: false,
                 },
                 value_b,
             ),
@@ -1119,16 +1175,75 @@ mod tests {
     }
 
     #[test]
+    fn renumbers_a_segment_after_the_previous_rounds_with_open_end() {
+        let match_a = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+        let match_b = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+
+        let value_a = fixture(
+            match_a,
+            json!([
+                round(0, "Red", "p1"),
+                round(1, "Blue", "p2"),
+                round(2, "Red", "p1")
+            ]),
+        );
+        let value_b = fixture(
+            match_b,
+            json!([
+                round(0, "Red", "p1"),
+                round(1, "Blue", "p2"),
+                round(2, "Red", "p1"),
+                round(3, "Blue", "p2")
+            ]),
+        );
+
+        let sources = vec![
+            (
+                MergeSegment {
+                    match_id: match_a.to_string(),
+                    start_round: 0,
+                    end_round: Some(2),
+                    renumber: false,
+                },
+                value_a,
+            ),
+            (
+                MergeSegment {
+                    match_id: match_b.to_string(),
+                    start_round: 1,
+                    end_round: None,
+                    renumber: true,
+                },
+                value_b,
+            ),
+        ];
+
+        let segments: Vec<_> = sources.iter().map(|(s, _)| s.clone()).collect();
+        let new_id = compute_merged_id(&segments);
+        let merged = merge_round_data(&sources, &new_id).expect("renumbered merge should succeed");
+
+        let nums: Vec<i64> = merged["roundResults"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["roundNum"].as_i64().unwrap())
+            .collect();
+        assert_eq!(nums, vec![0, 1, 2, 3, 4, 5]);
+    }
+
+    #[test]
     fn merged_id_is_order_independent_and_stable() {
         let seg_a = MergeSegment {
             match_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa".to_string(),
             start_round: 0,
-            end_round: 3,
+            end_round: Some(3),
+            renumber: false,
         };
         let seg_b = MergeSegment {
             match_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb".to_string(),
             start_round: 4,
-            end_round: 20,
+            end_round: Some(20),
+            renumber: false,
         };
 
         let id_1 = compute_merged_id(&[
@@ -1136,11 +1251,13 @@ mod tests {
                 match_id: seg_a.match_id.clone(),
                 start_round: seg_a.start_round,
                 end_round: seg_a.end_round,
+                renumber: seg_a.renumber,
             },
             MergeSegment {
                 match_id: seg_b.match_id.clone(),
                 start_round: seg_b.start_round,
                 end_round: seg_b.end_round,
+                renumber: seg_b.renumber,
             },
         ]);
         let id_2 = compute_merged_id(&[seg_b, seg_a]);
