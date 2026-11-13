@@ -9,6 +9,8 @@
 // License: https://github.com/Osthelia/RiotRelay/blob/main/LICENSE.md (Osthelia Free License v2.0)
 // Repository: https://github.com/Osthelia/RiotRelay
 
+mod lol;
+
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
@@ -54,6 +56,7 @@ struct AppState {
     db: PgPool,
     http: reqwest::Client,
     api_key: String,
+    lol_api_key: Option<String>,
     auth_key: String,
 }
 
@@ -62,6 +65,9 @@ async fn main() {
     dotenvy::dotenv().ok();
 
     let api_key = std::env::var("RIOT_API_KEY").expect("RIOT_API_KEY must be set");
+    let lol_api_key = std::env::var("LOL_RIOT_API_KEY")
+        .ok()
+        .filter(|key| !key.trim().is_empty());
     let auth_key = std::env::var("AUTH_KEY").expect("AUTH_KEY must be set");
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
@@ -85,6 +91,7 @@ async fn main() {
         db,
         http,
         api_key,
+        lol_api_key,
         auth_key,
     });
 
@@ -92,6 +99,21 @@ async fn main() {
         .route("/match/{region}/{id}", get(get_match))
         .route("/match/{region}/{id}/renew", post(renew_match))
         .route("/match/{region}/merge", post(merge_match))
+        .route("/lol/match/{region}/{id}", get(lol::get_match))
+        .route("/lol/match/{region}/{id}/renew", post(lol::renew_match))
+        .route("/lol/match/{region}/{id}/timeline", get(lol::get_timeline))
+        .route(
+            "/lol/match/{region}/{id}/timeline/renew",
+            post(lol::renew_timeline),
+        )
+        .route(
+            "/lol/matches/{region}/by-puuid/{puuid}",
+            get(lol::get_matches_by_puuid),
+        )
+        .route(
+            "/lol/account/{region}/by-riot-id/{game_name}/{tag_line}",
+            get(lol::get_account_by_riot_id),
+        )
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .route("/health", get(health))
         .with_state(state);
@@ -107,13 +129,16 @@ async fn main() {
 /// Liveness + DB readiness. Unauthenticated (registered after the auth layer)
 /// so orchestrators can probe it, and it fails when the cache DB is down so a
 /// database outage is visible rather than silently masked as a cache miss.
+/// `valo` / `lol` tell callers which Riot API keys are configured.
 async fn health(State(state): State<Arc<AppState>>) -> Response {
     let version = std::env::var("APP_VERSION").unwrap_or_else(|_| "dev".to_string());
 
     match sqlx::query("SELECT 1").execute(&state.db).await {
         Ok(_) => (Json(json!({
             "status": "ok",
-            "version": version
+            "version": version,
+            "valo": !state.api_key.trim().is_empty(),
+            "lol": state.lol_api_key.is_some()
         })))
         .into_response(),
         Err(_) => (StatusCode::SERVICE_UNAVAILABLE, "db unavailable").into_response(),
@@ -153,13 +178,11 @@ enum RiotFetch {
 
 async fn fetch_from_riot(state: &AppState, region: &str, id: &str) -> RiotFetch {
     let url = format!("https://{region}.api.riotgames.com/val/match/v1/matches/{id}");
-    let resp = match state
-        .http
-        .get(&url)
-        .header("X-Riot-Token", &state.api_key)
-        .send()
-        .await
-    {
+    fetch_url(&state.http, &url, &state.api_key).await
+}
+
+async fn fetch_url(http: &reqwest::Client, url: &str, api_key: &str) -> RiotFetch {
+    let resp = match http.get(url).header("X-Riot-Token", api_key).send().await {
         Ok(resp) => resp,
         Err(e) => return RiotFetch::Unreachable(e.to_string()),
     };
