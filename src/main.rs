@@ -129,13 +129,16 @@ async fn main() {
 /// Liveness + DB readiness. Unauthenticated (registered after the auth layer)
 /// so orchestrators can probe it, and it fails when the cache DB is down so a
 /// database outage is visible rather than silently masked as a cache miss.
+/// `valo` / `lol` tell callers which Riot API keys are configured.
 async fn health(State(state): State<Arc<AppState>>) -> Response {
     let version = std::env::var("APP_VERSION").unwrap_or_else(|_| "dev".to_string());
 
     match sqlx::query("SELECT 1").execute(&state.db).await {
         Ok(_) => (Json(json!({
             "status": "ok",
-            "version": version
+            "version": version,
+            "valo": !state.api_key.trim().is_empty(),
+            "lol": state.lol_api_key.is_some()
         })))
         .into_response(),
         Err(_) => (StatusCode::SERVICE_UNAVAILABLE, "db unavailable").into_response(),
